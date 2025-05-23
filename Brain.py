@@ -4,6 +4,8 @@ from JumpKing import JKGame
 from itertools import chain
 import time
 import os
+import pygame
+import datetime
 
 class Brain():
 
@@ -44,6 +46,23 @@ class Player():
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.current_action = 0
         self.no_more_actions = False
+        self.time = 100
+        self.completed_level = False
+
+    def load_from_save(filepath):
+        with open(filepath, 'r') as f:
+            for line in f.readlines():
+                if line[0] == str(0):
+                    # actions = line.split(', ')
+                    # actions = [x[2:] for x in actions]
+                    # actions = [np.uint8(int(x, 2)) for x in actions]
+
+                    binary_values = [s.strip() for s in line.split(',') if s.strip()]
+                    actions = np.array([np.uint8(int(b, 2)) for b in binary_values], dtype=np.uint8)
+        
+        player = Player(len(actions), actions)
+        return player
+                
 
     
     def print(self):
@@ -95,6 +114,7 @@ class Player():
         self.current_action = 0
 
         last_state = state
+        fps_count = 0
 
         while not (self.no_more_actions and state["move_available"]):
             # if state["level"] > start_level:
@@ -107,12 +127,18 @@ class Player():
             else:
                 state = env.step(0)
 
+            fps_count += 1
+        
+        self.time = fps_count / 60 # s
+
         
         if state["level"] > start_level:
-            self.f = 0
+            self.f = self.time
+            self.completed_level = True
             print("juhu!")
         else:
-            self.f = state["y"]
+            # trajanje niva u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
+            self.f = self.time + 100 * state["y"] 
     
     def show_replay(self, env):
         state = env.reset()
@@ -121,7 +147,7 @@ class Player():
         self.no_more_actions = False
         self.current_action = 0
 
-        while not self.no_more_actions:
+        while not (self.no_more_actions and state["move_available"]):
 
             if state["move_available"]:
                 agentCommand = self.get_agentCommand()
@@ -172,7 +198,7 @@ class Player():
 
         
 class Population():
-    def __init__(self, size, action_count, mutation_chance):
+    def __init__(self, size, action_count, mutation_chance, crossover_chance, max_gen):
         self.size = size
         self.action_count = action_count
         self.players = [Player(self.action_count) for _ in range(size)]
@@ -180,8 +206,12 @@ class Population():
         self.best_f = math.inf
         self.best_player = self.players[0]
         self.parents = []
-        self.Nparents = self.size//2
+        self.Nparents = self.size//5
         self.mutation_chance = mutation_chance
+        self.max_gen = max_gen
+        self.best_time = 100
+        self.completed_level = False
+        self.crossover_chance = crossover_chance
 
 
     def quit_env(self):
@@ -219,13 +249,18 @@ class Population():
     def crossover(self):
         self.players = []
 
-        for i in range(0, self.Nparents-1, 2):
-
-            parent1 = self.parents[i]
-            parent2 = self.parents[i+1]
+        # for i in range(0, self.Nparents-1, 2):
+        while len(self.players) < self.size:
+            parent1 = self.parents[np.random.randint(0, len(self.parents))]
+            parent2 = self.parents[np.random.randint(0, len(self.parents))]
             
-            kids = Player.create_kids(parent1, parent2)
-            self.players = list(chain(self.players, kids))
+            if np.random.random() < self.crossover_chance:
+                kids = Player.create_kids(parent1, parent2)
+
+                self.players.append(kids[0])
+
+                if self.size - len(self.players) != 1:
+                    self.players.append(kids[1])
 
 
     def mutate(self):
@@ -236,36 +271,50 @@ class Population():
         gen = 1
         start_time = time.time()
 
-        while True:
+        while gen < self.max_gen:
             self.calculate_f()
-
-            if(self.end()):
-                print("found best solution")
-                print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {time.time() - start_time}')
-                print(self.best_player.actions)
-                break
-
-
             self.selection()
             self.crossover()
             self.mutate()
-            print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {time.time() - start_time}')
+            print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {time.time() - start_time:.2f}s')
+            print(f'completed_level: {self.best_player.completed_level}, best_time: {self.best_player.time:.2f}s')
             gen +=1
         
-        
+
+        date = datetime.datetime.now()
+        filepath = os.path.join('Saves', f"{date:%d-%m-%y-%H-%M-%S}.txt")
+
+        with open(filepath, "w+") as f:
+            f.write('solution found at: ' + date.strftime("%c") + '\n')
+            f.write(f'generation: {gen}, time_elapsed: {time.time() - start_time}s ')
+            f.write(f'completed_level: {self.best_player.completed_level}, in game time: {self.best_player.time}s\n')
+            f.write(f'population size: {self.size}, action count: {self.action_count}, mutation_chance: {self.mutation_chance} ')
+            f.write(f'crossover_chance: {self.crossover_chance}\n')
+
+            for action in self.best_player.actions_binary:
+                f.write(bin(action))
+                f.write(', ')
+            f.write('\n')
+
         return self.best_player
 
 
 
     
-    
 if __name__ == "__main__":
-    # pop = Population(10, 5, 0.1)
-    pop = Population(50, 4, 0.1)
+    pop = Population(
+        size=50,
+        action_count=4,
+        mutation_chance=0.15,
+        crossover_chance=0.8,
+        max_gen=50,
+    )
 
-    player = pop.optimize()
-    time.sleep(2)
+    # player = pop.optimize()
+
+    # player = Player.load_from_save(os.path.join("Saves","23-05-25-20-20-48.txt"))
+    player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
+    player.print()
     player.show_replay(pop.env)
-    pop.quit_env()
 
     print('end')
