@@ -71,6 +71,9 @@ class DDQN(object):
 	):
 		self.target_net = NETWORK(4, 4, 32)
 		self.eval_net = NETWORK(4, 4, 32)
+		torch.device("mps" if torch.mps.is_available() else "cpu")
+		if torch.mps.is_available():
+			print("Using Apple Silicon GPU")
 
 		self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=0.001)
 		self.criterion = nn.MSELoss()
@@ -168,7 +171,7 @@ class JKGame:
 
 		self.game_screen_x = 0
 
-		pygame.display.set_icon(pygame.image.load("images\\sheets\\JumpKingIcon.ico"))
+		pygame.display.set_icon(pygame.image.load("images/sheets/JumpKingIcon.ico"))
 
 		self.levels = Levels(self.game_screen)
 
@@ -186,6 +189,11 @@ class JKGame:
 		self.visited = {}
 
 		pygame.display.set_caption('Jump King At Home XD')
+	
+	def save_exit(self):
+		self.menus.save_exit()
+
+
 
 	def reset(self):
 		self.king.reset()
@@ -198,24 +206,27 @@ class JKGame:
 		os.environ["session"] = "0"
 
 		self.step_counter = 0
-		done = False
-		state = [self.king.levels.current_level, self.king.x, self.king.y, self.king.jumpCount]
 
-		self.visited = {}
-		self.visited[(self.king.levels.current_level, self.king.y)] = 1
+		state = {
+			"level": 		self.king.levels.current_level,
+			"x": 			self.king.x,
+			"y": 			self.king.y,
+			"jumpCount": 	self.king.jumpCount,
+			"move_available": self.move_available()
+			}
 
-		return done, state
+		return state
 
 	def move_available(self):
 		available = not self.king.isFalling \
 					and not self.king.levels.ending \
-					and (not self.king.isSplat or self.king.splatCount > self.king.splatDuration)
+					and (not self.king.isSplat or self.king.splatCount > self.king.splatDuration) \
+					and not self.king.isJump
 		return available
 
 	def step(self, action):
 		old_level = self.king.levels.current_level
 		old_y = self.king.y
-		#old_y = (self.king.levels.max_level - self.king.levels.current_level) * 360 + self.king.y
 		while True:
 			self.clock.tick(self.fps)
 			self._check_events()
@@ -229,25 +240,36 @@ class JKGame:
 			self._update_audio()
 			pygame.display.update()
 
+			state = {
+				"level": 		self.king.levels.current_level,
+				"x": 			self.king.x,
+				"y": 			self.king.y,
+				"jumpCount": 	self.king.jumpCount,
+				"move_available": self.move_available()
+				}
 
-			if self.move_available():
-				self.step_counter += 1
-				state = [self.king.levels.current_level, self.king.x, self.king.y, self.king.jumpCount]
-				##################################################################################################
-				# Define the reward from environment                                                             #
-				##################################################################################################
-				if self.king.levels.current_level > old_level or (self.king.levels.current_level == old_level and self.king.y < old_y):
-					reward = 0
-				else:
-					self.visited[(self.king.levels.current_level, self.king.y)] = self.visited.get((self.king.levels.current_level, self.king.y), 0) + 1
-					if self.visited[(self.king.levels.current_level, self.king.y)] < self.visited[(old_level, old_y)]:
-						self.visited[(self.king.levels.current_level, self.king.y)] = self.visited[(old_level, old_y)] + 1
+			return state
+			# if self.move_available():
+			# 	self.step_counter += 1
+			# 	state = [self.king.levels.current_level, self.king.x, self.king.y, self.king.jumpCount]
+			# 	##################################################################################################
+			# 	# Define the reward from environment                                                             #
+			# 	##################################################################################################
+			# 	if self.king.levels.current_level < old_level or (self.king.levels.current_level == old_level and self.king.y < old_y):
+			# 		reward = 0
+			# 	else:
+			# 		# self.visited[(self.king.levels.current_level, self.king.y)] = self.visited.get((self.king.levels.current_level, self.king.y), 0) + 1
+			# 		# if self.visited[(self.king.levels.current_level, self.king.y)] < self.visited[(old_level, old_y)]:
+			# 		# 	self.visited[(self.king.levels.current_level, self.king.y)] = self.visited[(old_level, old_y)] + 1
 
-					reward = -self.visited[(self.king.levels.current_level, self.king.y)]
-				####################################################################################################
+			# 		# reward = -self.visited[(self.king.levels.current_level, self.king.y)]
+			# 	# reward = self.king.y
+			# 	if self.king.levels.current_level == old_level:
+			# 		self.king.y 
+			# 	####################################################################################################
 
-				done = True if self.step_counter > self.max_step else False
-				return state, reward, done
+			# 	done = True if self.step_counter > self.max_step else False
+			# 	return state, reward, done
 
 	def running(self):
 		"""
@@ -428,7 +450,7 @@ def train():
 		running_reward = 0
 		while not done:
 			action = agent.select_action(state)
-			#print(action_dict[action])
+			print(action_dict[action])
 			next_state, reward, done = env.step(action)
 
 			running_reward += reward
@@ -436,9 +458,12 @@ def train():
 			agent.train(state, action, reward, next_state, sign)
 			state = next_state
 		print (f'episode: {i}, reward: {running_reward}')
+	
 
-			
+
 if __name__ == "__main__":
-	#Game = JKGame()
-	#Game.running()
-	train()
+	Game = JKGame()
+	Game.running()
+	# train()
+	# os.export() fps = 58.8235294
+	# os.environ.get("fps", 30)
