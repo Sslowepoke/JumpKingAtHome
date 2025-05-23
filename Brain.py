@@ -87,7 +87,7 @@ class Player():
         }
 
         state = env.reset()
-        env.fps = 1000
+        env.fps = 10000
         start_level = state["level"]
 
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
