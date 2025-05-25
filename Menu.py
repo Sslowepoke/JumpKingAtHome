@@ -73,13 +73,13 @@ class Menus:
 
 					self.current_menu.activate("space")
 
-			if event.key == pygame.K_LEFT:
+			if event.key == pygame.K_LEFT or event.key == pygame.K_a:
 
 				if isinstance(self.current_menu.current_button, Slider) or isinstance(self.current_menu.current_button, Number_Slider):
 
 					self.current_menu.activate("left")
 
-			if event.key == pygame.K_RIGHT:
+			if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
 
 				if isinstance(self.current_menu.current_button, Slider) or isinstance(self.current_menu.current_button, Number_Slider):
 

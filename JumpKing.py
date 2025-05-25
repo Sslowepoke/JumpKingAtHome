@@ -194,6 +194,30 @@ class JKGame:
 		self.menus.save_exit()
 
 
+	def reset_to_checkpoint(self, checkpoint):
+		self.king.reset(checkpoint["x"], checkpoint["y"])
+		self.king.levels.load_chkpt(checkpoint["level"])
+		self.levels.load_chkpt(checkpoint["level"])
+
+
+		os.environ["start"] = "1"
+		os.environ["gaming"] = "1"
+		os.environ["pause"] = ""
+		os.environ["active"] = "1"
+		os.environ["attempt"] = str(int(os.environ.get("attempt")) + 1)
+		os.environ["session"] = "0"
+
+		self.step_counter = 0
+
+		state = {
+			"level": 		self.king.levels.current_level,
+			"x": 			self.king.x,
+			"y": 			self.king.y,
+			"jumpCount": 	self.king.jumpCount,
+			"move_available": self.move_available()
+			}
+
+		return state
 
 	def reset(self):
 		self.king.reset()

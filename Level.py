@@ -453,3 +453,14 @@ class Levels:
 		self.scrollers.__init__()
 
 		self.flyers.__init__()
+	
+	def load_chkpt(self, level):
+
+		self.current_level = level
+
+		self.wind.__init__(self.screen)
+
+		self.scrollers.__init__()
+
+		self.flyers.__init__()
+

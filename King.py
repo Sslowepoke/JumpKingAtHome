@@ -1146,7 +1146,7 @@ class King():
 		os.environ["FALLS"]  = str(self.falls)
 
 
-	def reset(self):
+	def reset(self, x=230, y=298):
 
 		self.isWalk = False
 
@@ -1203,7 +1203,8 @@ class King():
 
 		# Animation
 
-		self.x, self.y = 230, 298
+		# self.x, self.y = 230, 298
+		self.x, self.y = x, y
 
 		self.width, self.height = 32, 32
 

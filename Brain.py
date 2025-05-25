@@ -34,14 +34,19 @@ class Player():
             self.actions_binary = actions_binary
         else:
             self.actions_binary = np.random.randint(0, 256, size=self.action_count, dtype=np.uint8)
-            # self.actions_binary = [ 
-            #     0b00111111, 0b01111111, 0b10111111,
-            #     0b11111111, 0b10111111
-            # ]
             
-
         self.f = math.inf
-
+        self.current_action_frames = 0
+        self.actions = [self._bin_to_num(x) for x in self.actions_binary]
+        self.current_action = 0
+        self.no_more_actions = False
+        self.time = 100
+        self.completed_level = False
+    
+    def reset(self, action_count):
+        self.action_count = action_count
+        self.actions_binary = np.random.randint(0, 256, size=self.action_count, dtype=np.uint8)
+        self.f = math.inf
         self.current_action_frames = 0
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.current_action = 0
@@ -97,7 +102,7 @@ class Player():
         }
         return action
 
-    def calculate_f(self, env):
+    def calculate_f(self, env, starting_state):
         agentCommand_dict = {
             0: 'right',
             1: 'left',
@@ -105,7 +110,8 @@ class Player():
             3: 'left+space',
         }
 
-        state = env.reset()
+        # state = env.reset()
+        state = env.reset_to_checkpoint(starting_state)
         env.fps = 10000
         start_level = state["level"]
 
@@ -117,8 +123,6 @@ class Player():
         fps_count = 0
 
         while not (self.no_more_actions and state["move_available"]):
-            # if state["level"] > start_level:
-            #     env.fps = 30
 
             if state["move_available"]:
                 agentCommand = self.get_agentCommand()
@@ -133,15 +137,17 @@ class Player():
 
         
         if state["level"] > start_level:
-            self.f = self.time
+            self.f = self.time 
             self.completed_level = True
             print("juhu!")
         else:
-            # trajanje niva u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
-            self.f = self.time + 100 * state["y"] 
+            # trajanje nivoa u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
+            self.f = self.time + 100 * (state["y"] + 360 * (start_level - state["level"]))
+            
     
-    def show_replay(self, env):
-        state = env.reset()
+    def show_replay(self, env, starting_state):
+        # state = env.reset()
+        state = env.reset_to_checkpoint(starting_state)
         env.fps = 60
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.no_more_actions = False
@@ -154,6 +160,8 @@ class Player():
                 state = env.step(agentCommand)
             else:
                 state = env.step(0)
+        
+        return state
             
         
 
@@ -198,7 +206,7 @@ class Player():
 
         
 class Population():
-    def __init__(self, size, action_count, mutation_chance, crossover_chance, max_gen):
+    def __init__(self, size, action_count, mutation_chance, crossover_chance, max_gen, starting_state):
         self.size = size
         self.action_count = action_count
         self.players = [Player(self.action_count) for _ in range(size)]
@@ -212,6 +220,21 @@ class Population():
         self.best_time = 100
         self.completed_level = False
         self.crossover_chance = crossover_chance
+        self.starting_state = starting_state
+
+    def reset(self, size, action_count, starting_state):
+        self.action_count = action_count
+        self.size = size
+        for player in self.players:
+            player.reset(action_count)
+        self.best_f = math.inf
+        self.best_player = self.players[0]
+        self.parents = []
+        self.Nparents = self.size//5
+        self.best_time = 100
+        self.completed_level = False
+        self.starting_state = starting_state
+
 
 
     def quit_env(self):
@@ -220,7 +243,7 @@ class Population():
     def calculate_f(self):
         for player in self.players:
             self.env.reset()
-            player.calculate_f(self.env)
+            player.calculate_f(self.env, self.starting_state)
             if player.f < self.best_f:
                 self.best_player = player
                 self.best_f = player.f
@@ -276,7 +299,7 @@ class Population():
             self.selection()
             self.crossover()
             self.mutate()
-            print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {time.time() - start_time:.2f}s')
+            print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {(time.time() - start_time)/60:.2f}min')
             print(f'completed_level: {self.best_player.completed_level}, best_time: {self.best_player.time:.2f}s')
             gen +=1
         
@@ -286,7 +309,7 @@ class Population():
 
         with open(filepath, "w+") as f:
             f.write('solution found at: ' + date.strftime("%c") + '\n')
-            f.write(f'generation: {gen}, time_elapsed: {time.time() - start_time}s ')
+            f.write(f'generation: {gen}, time_elapsed: {(time.time() - start_time)/60:.2f}min ')
             f.write(f'completed_level: {self.best_player.completed_level}, in game time: {self.best_player.time}s\n')
             f.write(f'population size: {self.size}, action count: {self.action_count}, mutation_chance: {self.mutation_chance} ')
             f.write(f'crossover_chance: {self.crossover_chance}\n')
@@ -297,24 +320,59 @@ class Population():
             f.write('\n')
 
         return self.best_player
-
-
-
+        
+    
     
 if __name__ == "__main__":
+
+    state = {
+        "level": 		0,
+        "x": 			230,
+        "y": 			298,
+        }
+
     pop = Population(
-        size=50,
-        action_count=4,
+        size=100,
+        action_count=7,
         mutation_chance=0.15,
         crossover_chance=0.8,
         max_gen=50,
+        starting_state=state
     )
 
     # player = pop.optimize()
+    player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
+
+    end_state = player.show_replay(pop.env, state)
+
+    pop.reset(
+        size=50,
+        action_count=8,
+        starting_state=end_state
+    )
+
+    # player2 = pop.optimize()
+
+
+    # players = []
+    # for i in range(30):
+    #     player = pop.optimize()
+    #     players.append(player)
+
+    #     end_state = player.show_replay(pop.env, state)
+
+    #     pop.reset(
+    #         size=50,
+    #         action_count=6,
+    #         starting_state=end_state
+    #     )
+        
+
 
     # player = Player.load_from_save(os.path.join("Saves","23-05-25-20-20-48.txt"))
-    player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
-    player.print()
-    player.show_replay(pop.env)
+    # player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
+    player = Player.load_from_save("Saves\\25-05-25-17-11-38.txt")
+    # player.print()
+    player.show_replay(pop.env, end_state)
 
     print('end')
