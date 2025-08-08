@@ -1,14 +1,16 @@
 import numpy as np
-import math
+import concurrent.futures
+import pygame
 from JumpKing import JKGame
 import time
 import os
 import datetime
 
+
 class Player():
     '''Player class
 
-    A player is represents one playthrough of the game, it consists
+    A player represents one playthrough of the game, it consists
     of a list of inputs (actions), and has the utilities to "play" the game.
 
     In the sense of the genetic algorithm, the player's genetic material is
@@ -38,7 +40,7 @@ class Player():
                 size=self.action_count, dtype=np.uint8)
 
         # player's fitness function
-        self.f = math.inf
+        self.f = np.inf
         # current action has been active for this number of frames
         self.current_action_frames = 0
         # self.actions = [self._bin_to_num(x) for x in self.actions_binary]
@@ -55,7 +57,7 @@ class Player():
         '''
         self.action_count = action_count
         self.actions_binary = np.random.randint(0, 256, size=self.action_count, dtype=np.uint8)
-        self.f = math.inf
+        self.f = np.inf
         self.current_action_frames = 0
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.current_action = 0
@@ -137,14 +139,11 @@ class Player():
         }
         return action
 
-    def calculate_f(self, env, starting_state):
+    def calculate_f(self, starting_state):
         '''calculates the fitness function
 
         Parameters
         ----------
-        env : JKGame
-            Current game environment
-
         starting_state : dict
             dict represeting the starting state of the game.
             This enables creating checkpoints.
@@ -163,6 +162,8 @@ class Player():
             2: 'right+space',
             3: 'left+space',
         }
+
+        env = JKGame()
 
         state = env.reset_to_checkpoint(starting_state)
         # set the environment's fps to something large so the computation
@@ -194,15 +195,19 @@ class Player():
         self.time = fps_count / 60 # s, in-game time
 
 
-        # if the player completed a level, its fitness function will be just the time it took
-        if state["level"] > start_level:
-            self.f = self.time
-            self.completed_level = True
-            print("juhu!")
-        else:
-            # else f is the time + 100 * distance to the next level
-            # trajanje nivoa u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
-            self.f = self.time + 100 * (state["y"] + 360 * (start_level - state["level"]))
+        # # if the player completed a level, its fitness function will be just the time it took
+        # if state["level"] > start_level:
+        #     self.f = self.time
+        #     self.completed_level = True
+        #     print("juhu!")
+        # else:
+        #     # else f is the time + 100 * distance to the next level
+        #     # trajanje nivoa u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
+        #     # self.time je trajanje partije u sekundama, ocekujemo da ce biti 240s u minimumu
+        #     #
+        #     self.f = self.time + 100 * (state["y"] + 360 * (start_level - state["level"]))
+
+        self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
 
 
     def show_replay(self, env, starting_state):
@@ -296,6 +301,10 @@ class Player():
 
 
 
+def player_calc_f(player, state):
+    player.calculate_f(state)
+    return player
+
 class Population():
     '''Population
 
@@ -310,7 +319,7 @@ class Population():
         self.action_count = action_count
         self.players = [Player(self.action_count) for _ in range(size)]
         self.env = JKGame()
-        self.best_f = math.inf
+        self.best_f = np.inf
         self.best_player = self.players[0]
         self.parents = []
         self.Nparents = self.size//5
@@ -326,7 +335,7 @@ class Population():
         self.size = size
         for player in self.players:
             player.reset(action_count)
-        self.best_f = math.inf
+        self.best_f = np.inf
         self.best_player = self.players[0]
         self.parents = []
         self.Nparents = self.size//5
@@ -339,17 +348,23 @@ class Population():
     def quit_env(self):
         self.env.save_exit()
 
+
     def calculate_f(self):
         '''calculate fitness functions for every player in the generation
         '''
 
-        for player in self.players:
-            # reset the state of the game to the beginning
-            player.calculate_f(self.env, self.starting_state)
-            # keep the best solution
+
+
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            futures = [executor.submit(player_calc_f, player, self.starting_state) for player in self.players]
+
+        for future in concurrent.futures.as_completed(futures):
+            player = future.result()
             if player.f < self.best_f:
-                self.best_player = player
                 self.best_f = player.f
+                self.best_player = player
+
+
 
     def end(self):
         '''check if the algorithm ended
@@ -462,7 +477,7 @@ if __name__ == "__main__":
         action_count=7,
         mutation_chance=0.15,
         crossover_chance=0.8,
-        max_gen=50,
+        max_gen=10,
         starting_state=state
     )
 

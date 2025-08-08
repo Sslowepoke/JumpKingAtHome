@@ -1,9 +1,9 @@
 #!/usr/env/bin python
-#   
+#
 # Game Screen
-# 
+#
 
-import pygame 
+import pygame
 import sys
 import os
 import inspect
@@ -152,7 +152,7 @@ import time
 
 class JKGame:
 	""" Overall class to manga game aspects """
-        
+
 	def __init__(self, max_step=float('inf')):
 
 		pygame.init()
@@ -162,7 +162,7 @@ class JKGame:
 		self.clock = pygame.time.Clock()
 
 		self.fps = int(os.environ.get("fps"))
- 
+
 		self.bg_color = (0, 0, 0)
 
 		self.screen = pygame.display.set_mode((int(os.environ.get("screen_width")) * int(os.environ.get("window_scale")), int(os.environ.get("screen_height")) * int(os.environ.get("window_scale"))), pygame.HWSURFACE|pygame.DOUBLEBUF)#|pygame.SRCALPHA)
@@ -189,7 +189,7 @@ class JKGame:
 		self.visited = {}
 
 		pygame.display.set_caption('Jump King At Home XD')
-	
+
 	def save_exit(self):
 		self.menus.save_exit()
 
@@ -209,12 +209,14 @@ class JKGame:
 
 		self.step_counter = 0
 
+
 		state = {
 			"level": 		self.king.levels.current_level,
 			"x": 			self.king.x,
 			"y": 			self.king.y,
 			"jumpCount": 	self.king.jumpCount,
-			"move_available": self.move_available()
+			"move_available": self.move_available(),
+			"screen_height" : self.screen.get_size()[1]
 			}
 
 		return state
@@ -236,7 +238,8 @@ class JKGame:
 			"x": 			self.king.x,
 			"y": 			self.king.y,
 			"jumpCount": 	self.king.jumpCount,
-			"move_available": self.move_available()
+			"move_available": self.move_available(),
+			"screen_height" : self.screen.get_size()[1]
 			}
 
 		return state
@@ -269,7 +272,8 @@ class JKGame:
 				"x": 			self.king.x,
 				"y": 			self.king.y,
 				"jumpCount": 	self.king.jumpCount,
-				"move_available": self.move_available()
+				"move_available": self.move_available(),
+				"screen_height" : self.screen.get_size()[1]
 				}
 
 			return state
@@ -289,7 +293,7 @@ class JKGame:
 			# 		# reward = -self.visited[(self.king.levels.current_level, self.king.y)]
 			# 	# reward = self.king.y
 			# 	if self.king.levels.current_level == old_level:
-			# 		self.king.y 
+			# 		self.king.y
 			# 	####################################################################################################
 
 			# 	done = True if self.step_counter > self.max_step else False
@@ -339,7 +343,7 @@ class JKGame:
 					else:
 
 						os.environ["mode"] = "creative"
-					
+
 			if event.type == pygame.VIDEORESIZE:
 
 				self._resize_screen(event.w, event.h)
@@ -361,36 +365,37 @@ class JKGame:
 	def _update_gamescreen(self):
 
 		pygame.display.set_caption(f"Jump King At Home XD - {self.clock.get_fps():.2f} FPS")
+		"""
+    		self.game_screen.fill(self.bg_color)
 
-		self.game_screen.fill(self.bg_color)
+    		if os.environ["gaming"]:
 
-		if os.environ["gaming"]:
+    			self.levels.blit1()
 
-			self.levels.blit1()
+    		if os.environ["active"]:
 
-		if os.environ["active"]:
+    			self.king.blitme()
 
-			self.king.blitme()
+    		if os.environ["gaming"]:
 
-		if os.environ["gaming"]:
+    			self.babe.blitme()
 
-			self.babe.blitme()
+    		if os.environ["gaming"]:
 
-		if os.environ["gaming"]:
+    			self.levels.blit2()
 
-			self.levels.blit2()
+    		if os.environ["gaming"]:
 
-		if os.environ["gaming"]:
+    			self._shake_screen()
 
-			self._shake_screen()
+    		if not os.environ["gaming"]:
 
-		if not os.environ["gaming"]:
+    			self.start.blitme()
 
-			self.start.blitme()
+    		self.menus.blitme()
 
-		self.menus.blitme()
-
-		self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
+    		self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
+        """
 
 	def _resize_screen(self, w, h):
 
@@ -482,7 +487,7 @@ class JKGame:
 # 			agent.train(state, action, reward, next_state, sign)
 # 			state = next_state
 # 		print (f'episode: {i}, reward: {running_reward}')
-	
+
 
 
 if __name__ == "__main__":
