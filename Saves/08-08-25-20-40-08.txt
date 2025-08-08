@@ -1,0 +1,4 @@
+solution found at: Fri Aug  8 20:40:08 2025
+generation: 10, time_elapsed: 0.60min completed_level: False, in game time: 10.933333333333334s
+population size: 5, action count: 7, mutation_chance: 0.15 crossover_chance: 0.8
+0b11101001, 0b110010, 0b111101, 0b11111100, 0b10110100, 0b110, 0b100010, 

@@ -5,6 +5,7 @@ from JumpKing import JKGame
 import time
 import os
 import datetime
+import shutil
 
 
 class Player():
@@ -76,6 +77,7 @@ class Player():
             The path on which the save is located.
         '''
         with open(filepath, 'r') as f:
+            actions = np.empty(0, dtype=np.uint8)
             for line in f.readlines():
                 if line[0] == str(0):
                     # actions = line.split(', ')
@@ -83,10 +85,10 @@ class Player():
                     # actions = [np.uint8(int(x, 2)) for x in actions]
 
                     binary_values = [s.strip() for s in line.split(',') if s.strip()]
-                    actions = np.array([np.uint8(int(b, 2)) for b in binary_values], dtype=np.uint8)
+                    actions = np.concatenate((actions, np.array([np.uint8(int(b, 2)) for b in binary_values])), dtype=np.uint8)
 
-        player = Player(len(actions), actions)
-        return player
+            player = Player(len(actions), actions)
+            return player
 
     def print(self):
         '''Print the player's actions to the stdout
@@ -139,7 +141,7 @@ class Player():
         }
         return action
 
-    def calculate_f(self, starting_state):
+    def calculate_f(self, env, starting_state):
         '''calculates the fitness function
 
         Parameters
@@ -163,7 +165,6 @@ class Player():
             3: 'left+space',
         }
 
-        env = JKGame(wanna_blit=False)
 
         state = env.reset_to_checkpoint(starting_state)
         # set the environment's fps to something large so the computation
@@ -209,10 +210,9 @@ class Player():
 
         self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
 
-        env.save_exit()
 
 
-    def show_replay(self, env, starting_state):
+    def show_replay(self, env, starting_state, fps):
         '''shows the replay of a player playing the game
 
         Parameters
@@ -233,7 +233,7 @@ class Player():
         '''
 
         state = env.reset_to_checkpoint(starting_state)
-        env.fps = 60
+        env.fps = fps
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.no_more_actions = False
         self.current_action = 0
@@ -303,9 +303,18 @@ class Player():
 
 
 
-def player_calc_f(player, state):
-    player.calculate_f(state)
-    return player
+def player_calc_f(players, state):
+    env = JKGame(wanna_blit=False)
+    best_f = -np.inf
+    best_player = None
+    for player in players:
+        player.calculate_f(env, state)
+
+        if player.f > best_f:
+            best_f = player.f
+            best_player = player
+    env.save_exit()
+    return best_f, best_player
 
 class Population():
     '''Population
@@ -320,8 +329,7 @@ class Population():
         self.size = size
         self.action_count = action_count
         self.players = [Player(self.action_count) for _ in range(size)]
-        self.env = JKGame()
-        self.best_f = np.inf
+        self.best_f = -np.inf
         self.best_player = self.players[0]
         self.parents = []
         self.Nparents = self.size//5
@@ -337,7 +345,7 @@ class Population():
         self.size = size
         for player in self.players:
             player.reset(action_count)
-        self.best_f = np.inf
+        self.best_f = -np.inf
         self.best_player = self.players[0]
         self.parents = []
         self.Nparents = self.size//5
@@ -347,23 +355,24 @@ class Population():
 
 
 
-    def quit_env(self):
-        self.env.save_exit()
 
 
     def calculate_f(self):
         '''calculate fitness functions for every player in the generation
         '''
 
+        self.batch_count = 5
 
-
+        futures = []
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            futures = [executor.submit(player_calc_f, player, self.starting_state) for player in self.players]
+            for i in range(0, len(self.players), self.batch_count):
+                max_b = min(i+self.batch_count, len(self.players))
+                futures.append(executor.submit(player_calc_f, self.players[i:max_b], self.starting_state))
 
         for future in concurrent.futures.as_completed(futures):
-            player = future.result()
-            if player.f < self.best_f:
-                self.best_f = player.f
+            fitness, player = future.result()
+            if fitness > self.best_f:
+                self.best_f = fitness
                 self.best_player = player
 
 
@@ -371,10 +380,11 @@ class Population():
     def end(self):
         '''check if the algorithm ended
         '''
-        if self.best_f == 0:
-            return True
-        else:
-            return False
+        # if self.best_f == 0:
+        #     return True
+        # else:
+        #     return False
+        return False
 
     def selection(self):
         '''perform selection
@@ -450,14 +460,23 @@ class Population():
         date = datetime.datetime.now()
         filepath = os.path.join('Saves', f"{date:%d-%m-%y-%H-%M-%S}.txt")
 
+        actions: np.typing.NDArray[np.uint8] = self.best_player.actions_binary
+
         with open(filepath, "w+") as f:
             f.write('solution found at: ' + date.strftime("%c") + '\n')
             f.write(f'generation: {gen}, time_elapsed: {(time.time() - start_time)/60:.2f}min ')
             f.write(f'completed_level: {self.best_player.completed_level}, in game time: {self.best_player.time}s\n')
+            f.write(f'player fitness level: {self.best_player.f}\n')
             f.write(f'population size: {self.size}, action count: {self.action_count}, mutation_chance: {self.mutation_chance} ')
             f.write(f'crossover_chance: {self.crossover_chance}\n')
 
-            for action in self.best_player.actions_binary:
+            for action in actions:
+                f.write(bin(action))
+                f.write(', ')
+            f.write('\n')
+
+        with open(os.path.join("Saves", "latest.txt"), "a+") as f:
+            for action in actions:
                 f.write(bin(action))
                 f.write(', ')
             f.write('\n')
@@ -474,21 +493,24 @@ if __name__ == "__main__":
         "y": 			298,
         }
 
+
+    player = Player.load_from_save(str(os.path.join('Saves', 'latest.txt')))
+
+    env = JKGame()
+
+    end_state = player.show_replay(env, state, 10000)
+
     pop = Population(
-        size=3,
+        size=50,
         action_count=7,
         mutation_chance=0.15,
         crossover_chance=0.8,
         max_gen=10,
-        starting_state=state
+        starting_state=end_state
     )
 
-    # player = pop.optimize()
-    # player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
-
     player = pop.optimize()
-
-    end_state = player.show_replay(pop.env, state)
+    env.save_exit()
 
     # pop.reset(
     #     size=50,
