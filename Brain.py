@@ -163,7 +163,7 @@ class Player():
             3: 'left+space',
         }
 
-        env = JKGame()
+        env = JKGame(wanna_blit=False)
 
         state = env.reset_to_checkpoint(starting_state)
         # set the environment's fps to something large so the computation
@@ -208,6 +208,8 @@ class Player():
         #     self.f = self.time + 100 * (state["y"] + 360 * (start_level - state["level"]))
 
         self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
+
+        env.save_exit()
 
 
     def show_replay(self, env, starting_state):
@@ -473,7 +475,7 @@ if __name__ == "__main__":
         }
 
     pop = Population(
-        size=100,
+        size=3,
         action_count=7,
         mutation_chance=0.15,
         crossover_chance=0.8,

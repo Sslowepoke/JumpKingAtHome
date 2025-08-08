@@ -153,9 +153,11 @@ import time
 class JKGame:
 	""" Overall class to manga game aspects """
 
-	def __init__(self, max_step=float('inf')):
+	def __init__(self, max_step=float('inf'), wanna_blit=True):
 
 		pygame.init()
+
+		self.wanna_blit = wanna_blit
 
 		self.environment = Environment()
 
@@ -365,37 +367,36 @@ class JKGame:
 	def _update_gamescreen(self):
 
 		pygame.display.set_caption(f"Jump King At Home XD - {self.clock.get_fps():.2f} FPS")
-		"""
-    		self.game_screen.fill(self.bg_color)
+		if self.wanna_blit:
+            self.game_screen.fill(self.bg_color)
 
-    		if os.environ["gaming"]:
+            if os.environ["gaming"]:
 
-    			self.levels.blit1()
+            self.levels.blit1()
 
-    		if os.environ["active"]:
+            if os.environ["active"]:
 
-    			self.king.blitme()
+            self.king.blitme()
 
-    		if os.environ["gaming"]:
+            if os.environ["gaming"]:
 
-    			self.babe.blitme()
+            self.babe.blitme()
 
-    		if os.environ["gaming"]:
+            if os.environ["gaming"]:
 
-    			self.levels.blit2()
+            self.levels.blit2()
 
-    		if os.environ["gaming"]:
+            if os.environ["gaming"]:
 
-    			self._shake_screen()
+            self._shake_screen()
 
-    		if not os.environ["gaming"]:
+            if not os.environ["gaming"]:
 
-    			self.start.blitme()
+            self.start.blitme()
 
-    		self.menus.blitme()
+            self.menus.blitme()
 
-    		self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
-        """
+            self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
 
 	def _resize_screen(self, w, h):
 
