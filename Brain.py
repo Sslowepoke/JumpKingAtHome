@@ -197,7 +197,7 @@ class Player():
 
         # self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
 
-        self.f = ( (state["level"]+1) * state["screen_height"] - state["y"] )
+        self.f = ( (state["level"]+1) * state["screen_height"] + state["y"] )
 
 
     def show_replay(self, env, starting_state, fps):
