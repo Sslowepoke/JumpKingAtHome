@@ -6,4 +6,4 @@
 .venv
 __pycache__/
 __pycache__
-# Saves/*.txt
+Saves/*.txt

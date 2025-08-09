@@ -153,11 +153,12 @@ import time
 class JKGame:
 	""" Overall class to manga game aspects """
 
-	def __init__(self, max_step=float('inf'), wanna_blit=True):
+	def __init__(self, max_step=float('inf'), show_game=True, keyboard_controlled=True):
 
 		pygame.init()
 
-		self.wanna_blit = wanna_blit
+		self.show_game = show_game
+		self.keyboard_controlled = keyboard_controlled
 
 		self.environment = Environment()
 
@@ -321,7 +322,7 @@ class JKGame:
 			pygame.display.update()
 
 	def _check_events(self):
-
+		if not self.keyboard_controlled: return
 		for event in pygame.event.get():
 
 			if event.type == pygame.QUIT:
@@ -366,43 +367,43 @@ class JKGame:
 
 	def _update_gamescreen(self):
 		pygame.display.set_caption(f"Jump King At Home XD - {self.clock.get_fps():.2f} FPS")
-		if self.wanna_blit:
-			self.game_screen.fill(self.bg_color)
+		if not self.show_game: return
+		self.game_screen.fill(self.bg_color)
 
-			if os.environ["gaming"]:
+		if os.environ["gaming"]:
 
-				self.levels.blit1()
+			self.levels.blit1()
 
-			if os.environ["active"]:
+		if os.environ["active"]:
 
-				self.king.blitme()
+			self.king.blitme()
 
-			if os.environ["gaming"]:
+		if os.environ["gaming"]:
 
-				self.babe.blitme()
+			self.babe.blitme()
 
-			if os.environ["gaming"]:
+		if os.environ["gaming"]:
 
-				self.levels.blit2()
+			self.levels.blit2()
 
-			if os.environ["gaming"]:
+		if os.environ["gaming"]:
 
-				self._shake_screen()
+			self._shake_screen()
 
-			if not os.environ["gaming"]:
+		if not os.environ["gaming"]:
 
-				self.start.blitme()
+			self.start.blitme()
 
-			self.menus.blitme()
+		self.menus.blitme()
 
-			self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
+		self.screen.blit(pygame.transform.scale(self.game_screen, self.screen.get_size()), (self.game_screen_x, 0))
 
 	def _resize_screen(self, w, h):
 
 		self.screen = pygame.display.set_mode((w, h), pygame.HWSURFACE|pygame.DOUBLEBUF|pygame.SRCALPHA)
 
 	def _shake_screen(self):
-
+		if not self.show_game: return
 		try:
 
 			if self.levels.levels[self.levels.current_level].shake:
@@ -430,7 +431,7 @@ class JKGame:
 			print("SHAKE ERROR: ", e)
 
 	def _update_audio(self):
-
+		if not self.show_game: return
 		for channel in range(pygame.mixer.get_num_channels()):
 
 			if not os.environ["music"]:

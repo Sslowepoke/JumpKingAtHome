@@ -41,7 +41,7 @@ class Player():
                 size=self.action_count, dtype=np.uint8)
 
         # player's fitness function
-        self.f = np.inf
+        self.f = -np.inf
         # current action has been active for this number of frames
         self.current_action_frames = 0
         # self.actions = [self._bin_to_num(x) for x in self.actions_binary]
@@ -58,7 +58,7 @@ class Player():
         '''
         self.action_count = action_count
         self.actions_binary = np.random.randint(0, 256, size=self.action_count, dtype=np.uint8)
-        self.f = np.inf
+        self.f = -np.inf
         self.current_action_frames = 0
         self.actions = [self._bin_to_num(x) for x in self.actions_binary]
         self.current_action = 0
