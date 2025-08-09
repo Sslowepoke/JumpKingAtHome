@@ -6,6 +6,7 @@ import time
 import os
 import datetime
 import shutil
+import matplotlib.pyplot as plt
 
 
 class Player():
@@ -52,11 +53,10 @@ class Player():
         self.time = 100
         self.completed_level = False
 
-    def reset(self, action_count):
+    def reset(self):
         '''
         Reset the player.
         '''
-        self.action_count = action_count
         self.actions_binary = np.random.randint(0, 256, size=self.action_count, dtype=np.uint8)
         self.f = -np.inf
         self.current_action_frames = 0
@@ -197,7 +197,7 @@ class Player():
 
         # self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
 
-        self.f = ( (state["level"]+1) * state["screen_height"] - state["y"] )
+        self.f = ( (state["level"]+1) * state["screen_height"] - state["y"] ) - 0.1 * self.time
 
 
     def show_replay(self, env, starting_state, fps):
@@ -227,6 +227,7 @@ class Player():
         self.current_action = 0
 
         while not (self.no_more_actions and state["move_available"]):
+            print(f"{self.current_action}")
 
             if state["move_available"]:
                 agentCommand = self.get_agentCommand()
@@ -329,12 +330,13 @@ class Population():
         self.starting_state = starting_state
         self.batch_size = batch_size
         self.batch_count = int(np.ceil(self.size / self.batch_size))
+        self.fitness_history = []
+        self.optimization_time = 0
+        self.gen = 0
 
-    def reset(self, size, action_count, starting_state):
-        self.action_count = action_count
-        self.size = size
+    def reset(self, starting_state):
         for player in self.players:
-            player.reset(action_count)
+            player.reset()
         self.best_f = -np.inf
         self.best_player = self.players[0]
         self.parents = []
@@ -342,9 +344,9 @@ class Population():
         self.best_time = 100
         self.completed_level = False
         self.starting_state = starting_state
-
-
-
+        self.optimization_time = 0
+        self.fitness_history = []
+        self.gen = 0
 
 
     def calculate_f(self):
@@ -361,8 +363,8 @@ class Population():
             if fitness > self.best_f:
                 self.best_f = fitness
                 self.best_player = player
-
-
+        
+        self.fitness_history.append(self.best_f)
 
     def end(self):
         '''check if the algorithm ended
@@ -391,7 +393,7 @@ class Population():
             ind1 = np.random.randint(0, len(self.players))
             ind2 = np.random.randint(0, len(self.players))
 
-            if self.players[ind1].f < self.players[ind2].f:
+            if self.players[ind1].f > self.players[ind2].f:
                 self.parents.append(self.players[ind1])
                 self.players.pop(ind1)
             else:
@@ -430,19 +432,26 @@ class Population():
     def optimize(self):
         '''main optimization loop'''
 
-        gen = 1
+        self.gen = 0
         start_time = time.time()
 
-        while gen < self.max_gen:
+        while self.gen < self.max_gen:
             self.calculate_f()
             self.selection()
             self.crossover()
             self.mutation()
-            print(f'generation: {gen}, best_solution: {self.best_f}, time_elapsed: {(time.time() - start_time)/60:.2f}min')
+            print(f'generation: {self.gen}, best_solution: {self.best_f}, time_elapsed: {(time.time() - start_time)/60:.2f}min')
             print(f'completed_level: {self.best_player.completed_level}, best_time: {self.best_player.time:.2f}s')
-            gen +=1
+            self.gen +=1
 
+        self.optimization_time = time.time() - start_time
 
+        self.save()
+        self.plot_history()
+
+        return self.best_player
+
+    def save(self):
         # make a save
         date = datetime.datetime.now()
         filepath = os.path.join('Saves', f"{date:%d-%m-%y-%H-%M-%S}.txt")
@@ -451,7 +460,7 @@ class Population():
 
         with open(filepath, "w+") as f:
             f.write('solution found at: ' + date.strftime("%c") + '\n')
-            f.write(f'generation: {gen}, time_elapsed: {(time.time() - start_time)/60:.2f}min ')
+            f.write(f'generation: {self.gen}, time_elapsed: {self.optimization_time/60:.2f}min ')
             f.write(f'completed_level: {self.best_player.completed_level}, in game time: {self.best_player.time}s\n')
             f.write(f'player fitness level: {self.best_player.f}\n')
             f.write(f'population size: {self.size}, action count: {self.action_count}, mutation_chance: {self.mutation_chance} ')
@@ -468,7 +477,16 @@ class Population():
                 f.write(', ')
             f.write('\n')
 
-        return self.best_player
+    
+    def plot_history(self):
+        plt.figure()
+        plt.title('fitness history')
+        plt.plot(self.fitness_history)
+        plt.grid()
+        plt.xlabel('iteration')
+        plt.ylabel('fitness')
+        plt.show()
+
 
 
 
@@ -482,22 +500,28 @@ if __name__ == "__main__":
 
 
     player = Player.load_from_save(str(os.path.join('Saves', 'latest.txt')))
-
     env = JKGame()
-
-    end_state = player.show_replay(env, state, 60)
-
+    state = player.show_replay(env, state, 60)
     pop = Population(
-        size=100,
-        action_count=7,
+        size=200,
+        action_count=4,
         mutation_chance=0.1,
         crossover_chance=0.8,
-        max_gen=50,
-        starting_state=end_state,
+        max_gen=2,
+        starting_state=state,
         batch_size=6
     )
 
-    player = pop.optimize()
-    env.save_exit()
+    for _ in range(2):
 
+        player = pop.optimize()
+        state = player.show_replay(env, state, 60)
+        pop.reset(state)
+    
+
+
+
+
+
+    env.save_exit()
     print('end')
