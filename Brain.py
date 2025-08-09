@@ -488,13 +488,13 @@ if __name__ == "__main__":
     end_state = player.show_replay(env, state, 60)
 
     pop = Population(
-        size=50,
+        size=100,
         action_count=7,
-        mutation_chance=0.15,
+        mutation_chance=0.1,
         crossover_chance=0.8,
-        max_gen=10,
+        max_gen=50,
         starting_state=end_state,
-        batch_size=5
+        batch_size=6
     )
 
     player = pop.optimize()
