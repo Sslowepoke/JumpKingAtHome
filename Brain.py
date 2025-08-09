@@ -195,21 +195,9 @@ class Player():
 
         self.time = fps_count / 60 # s, in-game time
 
+        # self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
 
-        # # if the player completed a level, its fitness function will be just the time it took
-        # if state["level"] > start_level:
-        #     self.f = self.time
-        #     self.completed_level = True
-        #     print("juhu!")
-        # else:
-        #     # else f is the time + 100 * distance to the next level
-        #     # trajanje nivoa u sekundama + 100 * koliko mu fali do vrha nivoa, y je izmedju 0 i 365 ili tako nesto
-        #     # self.time je trajanje partije u sekundama, ocekujemo da ce biti 240s u minimumu
-        #     #
-        #     self.f = self.time + 100 * (state["y"] + 360 * (start_level - state["level"]))
-
-        self.f = ( state["level"] * state["screen_height"] - state["y"] ) - self.time
-
+        self.f = ( (state["level"]+1) * state["screen_height"] - state["y"] )
 
 
     def show_replay(self, env, starting_state, fps):
@@ -304,7 +292,7 @@ class Player():
 
 
 def player_calc_f(players, state):
-    env = JKGame(wanna_blit=False)
+    env = JKGame(show_game=False, keyboard_controlled=False)
     best_f = -np.inf
     best_player = None
     for player in players:
@@ -325,7 +313,7 @@ class Population():
 
     '''
 
-    def __init__(self, size, action_count, mutation_chance, crossover_chance, max_gen, starting_state):
+    def __init__(self, size, action_count, mutation_chance, crossover_chance, max_gen, starting_state, batch_size):
         self.size = size
         self.action_count = action_count
         self.players = [Player(self.action_count) for _ in range(size)]
@@ -339,6 +327,8 @@ class Population():
         self.completed_level = False
         self.crossover_chance = crossover_chance
         self.starting_state = starting_state
+        self.batch_size = batch_size
+        self.batch_count = int(np.ceil(self.size / self.batch_size))
 
     def reset(self, size, action_count, starting_state):
         self.action_count = action_count
@@ -360,9 +350,6 @@ class Population():
     def calculate_f(self):
         '''calculate fitness functions for every player in the generation
         '''
-
-        self.batch_count = 5
-
         futures = []
         with concurrent.futures.ProcessPoolExecutor() as executor:
             for i in range(0, len(self.players), self.batch_count):
@@ -498,7 +485,7 @@ if __name__ == "__main__":
 
     env = JKGame()
 
-    end_state = player.show_replay(env, state, 10000)
+    end_state = player.show_replay(env, state, 60)
 
     pop = Population(
         size=50,
@@ -506,40 +493,11 @@ if __name__ == "__main__":
         mutation_chance=0.15,
         crossover_chance=0.8,
         max_gen=10,
-        starting_state=end_state
+        starting_state=end_state,
+        batch_size=5
     )
 
     player = pop.optimize()
     env.save_exit()
-
-    # pop.reset(
-    #     size=50,
-    #     action_count=8,
-    #     starting_state=end_state
-    # )
-
-    # player2 = pop.optimize()
-
-
-    # players = []
-    # for i in range(30):
-    #     player = pop.optimize()
-    #     players.append(player)
-
-    #     end_state = player.show_replay(pop.env, state)
-
-    #     pop.reset(
-    #         size=50,
-    #         action_count=6,
-    #         starting_state=end_state
-    #     )
-
-
-
-    # player = Player.load_from_save(os.path.join("Saves","23-05-25-20-20-48.txt"))
-    # player = Player.load_from_save("Saves\\23-05-25-20-55-47.txt")
-    # player = Player.load_from_save("Saves\\25-05-25-17-11-38.txt")
-    # player.print()
-    # player.show_replay(pop.env, end_state)
 
     print('end')
