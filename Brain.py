@@ -199,7 +199,6 @@ class Player():
 
         self.f = ( (state["level"]+1) * state["screen_height"] - state["y"] ) - 0.1 * self.time
 
-
     def show_replay(self, env, starting_state, fps):
         '''shows the replay of a player playing the game
 
@@ -363,7 +362,7 @@ class Population():
             if fitness > self.best_f:
                 self.best_f = fitness
                 self.best_player = player
-        
+
         self.fitness_history.append(self.best_f)
 
     def end(self):
@@ -374,7 +373,7 @@ class Population():
             return True
 
         # end if fitness didnt change in the past 20 generations
-        if self.gen > 30 and self.best_f == self.fitness_history[self.gen-30]:
+        if self.gen > 50 and self.best_f == self.fitness_history[self.gen-50]:
             return True
 
         return False
@@ -485,7 +484,7 @@ class Population():
                 f.write(', ')
             f.write('\n')
 
-    
+
     def plot_history(self):
         plt.figure()
         plt.title('fitness history')
@@ -510,22 +509,32 @@ if __name__ == "__main__":
     player = Player.load_from_save(str(os.path.join('Saves', 'latest.txt')))
     env = JKGame()
     state = player.show_replay(env, state, 60)
+
+    player.calculate_f(env, state)
+    best_f = player.f
+
     pop = Population(
         size=200,
         action_count=5,
         mutation_chance=0.1,
         crossover_chance=0.8,
-        max_gen=100,
+        max_gen=200,
         starting_state=state,
-        batch_size=6
+        batch_size=10
     )
 
     for _ in range(10000):
 
         player = pop.optimize()
-        state = player.show_replay(env, state, 10000)
-        pop.reset(state)
-    
+
+        if player.f > best_f:
+            best_f = player.f
+            state = player.show_replay(env, state, 10000)
+            pop.reset(state)
+
+        else:
+            continue
+
 
 
 
