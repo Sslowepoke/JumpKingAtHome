@@ -369,10 +369,14 @@ class Population():
     def end(self):
         '''check if the algorithm ended
         '''
-        # if self.best_f == 0:
-        #     return True
-        # else:
-        #     return False
+        # end if we reached the max number of generations
+        if self.gen > self.max_gen:
+            return True
+
+        # end if fitness didnt change in the past 20 generations
+        if self.gen > 30 and self.best_f == self.fitness_history[self.gen-30]:
+            return True
+
         return False
 
     def selection(self):
@@ -435,7 +439,7 @@ class Population():
         self.gen = 0
         start_time = time.time()
 
-        while self.gen < self.max_gen:
+        while not self.end():
             self.calculate_f()
             self.selection()
             self.crossover()
@@ -447,7 +451,7 @@ class Population():
         self.optimization_time = time.time() - start_time
 
         self.save()
-        self.plot_history()
+        # self.plot_history()
 
         return self.best_player
 
@@ -465,6 +469,10 @@ class Population():
             f.write(f'player fitness level: {self.best_player.f}\n')
             f.write(f'population size: {self.size}, action count: {self.action_count}, mutation_chance: {self.mutation_chance} ')
             f.write(f'crossover_chance: {self.crossover_chance}\n')
+            f.write(f'fitness history: ')
+            for h in self.fitness_history:
+                f.write(f'{h}, ')
+
 
             for action in actions:
                 f.write(bin(action))
@@ -504,18 +512,18 @@ if __name__ == "__main__":
     state = player.show_replay(env, state, 60)
     pop = Population(
         size=200,
-        action_count=4,
+        action_count=5,
         mutation_chance=0.1,
         crossover_chance=0.8,
-        max_gen=2,
+        max_gen=100,
         starting_state=state,
         batch_size=6
     )
 
-    for _ in range(2):
+    for _ in range(10000):
 
         player = pop.optimize()
-        state = player.show_replay(env, state, 60)
+        state = player.show_replay(env, state, 10000)
         pop.reset(state)
     
 
