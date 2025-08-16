@@ -7,3 +7,9 @@
 __pycache__/
 __pycache__
 Saves/*.txt
+
+
+izvestaj/*.out
+izvestaj/*.log
+izvestaj/*.aux
+
