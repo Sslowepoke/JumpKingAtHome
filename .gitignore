@@ -9,7 +9,7 @@ __pycache__
 Saves/*.txt
 
 
-izvestaj/*.out
-izvestaj/*.log
-izvestaj/*.aux
+izvestaj/*
+!izvestaj/OOA_ispit.pdf
+!izvestaj/OOA_ispit.tex
 
