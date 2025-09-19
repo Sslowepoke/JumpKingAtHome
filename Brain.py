@@ -226,7 +226,7 @@ class Player():
         self.current_action = 0
 
         while not (self.no_more_actions and state["move_available"]):
-            print(f"{self.current_action}")
+            # print(f"{self.current_action}")
 
             if state["move_available"]:
                 agentCommand = self.get_agentCommand()
@@ -373,8 +373,8 @@ class Population():
             return True
 
         # end if fitness didnt change in the past 20 generations
-        if self.gen > 50 and self.best_f == self.fitness_history[self.gen-50]:
-            return True
+        # if self.gen > 50 and self.best_f == self.fitness_history[self.gen-50]:
+        #     return True
 
         return False
 
@@ -514,13 +514,13 @@ if __name__ == "__main__":
     best_f = player.f
 
     pop = Population(
-        size=200,
+        size=300,
         action_count=5,
         mutation_chance=0.1,
         crossover_chance=0.8,
-        max_gen=200,
+        max_gen=150,
         starting_state=state,
-        batch_size=10
+        batch_size=6
     )
 
     for _ in range(10000):
@@ -529,6 +529,7 @@ if __name__ == "__main__":
 
         if player.f > best_f:
             best_f = player.f
+            pop.save()
             state = player.show_replay(env, state, 10000)
             pop.reset(state)
 
